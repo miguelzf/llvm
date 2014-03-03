@@ -49,7 +49,7 @@ namespace llvm {
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<FindUsedTypes>();
-      AU.addRequired<DataLayout>();
+      AU.addRequired<DataLayoutPass>();
     }
 
     virtual const char *getPassName() const {
@@ -87,7 +87,7 @@ namespace llvm {
   public:
     formatted_raw_ostream *Out;
     Module *ModulePtr;
-    DataLayout *TD;
+    const DataLayout *TD;
     LoopInfo *LInfo;
     SetVector<Type *> UsedTypes;
     std::vector<StaticInitializer>* InitListPtr;

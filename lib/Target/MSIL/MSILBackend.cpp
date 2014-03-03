@@ -38,7 +38,7 @@ bool MSILModule::doInitialization(Module &M) {
 
 bool MSILModule::runOnModule(Module &M) {
   ModulePtr = &M;
-  Writer->TD = &getAnalysis<DataLayout>();
+  Writer->TD = &getAnalysis<DataLayoutPass>().getDataLayout();
   Writer->printStartup();
 
   bool Changed = false;
@@ -140,7 +140,7 @@ bool MSILModule::runOnBasicBlock(BasicBlock &BB, IntrinsicLowering &IL) {
 char MSILModule::ID = 0;
 INITIALIZE_PASS_BEGIN(MSILModule, "msil-module",
                 "MSIL module pass", false, false)
-INITIALIZE_PASS_DEPENDENCY(DataLayout)
+INITIALIZE_PASS_DEPENDENCY(DataLayoutPass)
 INITIALIZE_PASS_DEPENDENCY(FindUsedTypes)
 INITIALIZE_PASS_END(MSILModule, "msil-module",
                 "MSIL module pass", false, false)
