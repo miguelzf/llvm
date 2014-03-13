@@ -2273,3 +2273,7 @@ bool MSILTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   PM.add(Writer);
   return false;
 }
+
+void MSILTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
+	
+}
