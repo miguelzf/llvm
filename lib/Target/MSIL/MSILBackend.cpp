@@ -608,7 +608,6 @@ std::string MSILWriter::getTypePostfix(const Type* Ty, bool Expand,
 
 
 void MSILWriter::printConvToPtr() {
-  printf("GET POINTERSIZE %u\n",TD->getPointerSize());
   switch (TD->getPointerSize()) {
   case 4:
     printSimpleInstruction("conv.u4");
@@ -623,7 +622,6 @@ void MSILWriter::printConvToPtr() {
 
 
 void MSILWriter::printPtrLoad(uint64_t N) {
-  printf("GET POINTERSIZE %u\n",TD->getPointerSize());
   switch (TD->getPointerSize()) {
   case 4:
     printSimpleInstruction("ldc.i4",utostr(N).c_str());
