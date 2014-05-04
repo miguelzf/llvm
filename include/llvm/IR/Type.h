@@ -18,6 +18,8 @@
 #include "llvm-c/Core.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
@@ -33,6 +35,7 @@ class LLVMContext;
 class LLVMContextImpl;
 class StringRef;
 template<class GraphType> struct GraphTraits;
+class MDNode;
 
 /// The instances of the Type class are immutable: once they are created,
 /// they are never changed.  Also note that only one instance of a particular
@@ -83,12 +86,15 @@ private:
   // Bitpack ID and SubclassData manually.
   // Note: TypeID : low 8 bit; SubclassData : high 24 bit.
   uint32_t IDAndSubclassData;
-
+  
+  // Keeps track if the type has metadata attached.
+  unsigned HasMetadata : 1;
+  
 protected:
   friend class LLVMContextImpl;
   explicit Type(LLVMContext &C, TypeID tid)
     : Context(C), IDAndSubclassData(0),
-      NumContainedTys(0), ContainedTys(0) {
+      NumContainedTys(0), ContainedTys(0), HasMetadata(0) {
     setTypeID(tid);
   }
   ~Type() {}
@@ -235,6 +241,12 @@ public:
   /// isEmptyTy - Return true if this type is empty, that is, it has no
   /// elements or all its elements are empty.
   bool isEmptyTy() const;
+
+  /// Here are some useful little methods to query what type derived types are
+  /// Note that all other types can just compare to see if this == Type::xxxTy;
+  ///
+  bool isPrimitiveType() const { return getTypeID() <= X86_MMXTyID; }
+  bool isDerivedType()   const { return getTypeID() >= IntegerTyID; }
 
   /// isFirstClassType - Return true if the type is "first class", meaning it
   /// is a valid type for a Value.
@@ -415,6 +427,62 @@ public:
   /// to PointerType::get(Foo, AddrSpace).
   PointerType *getPointerTo(unsigned AddrSpace = 0);
 
+  //===--------------------------------------------------------------------===//
+  // Metadata manipulation.
+  //===--------------------------------------------------------------------===//
+  
+  /// hasMetadata() - Return true if this type has any metadata attached
+  /// to it.
+  bool hasMetadata() const {
+    return hasMetadataHashEntry();
+  }
+  
+  /// getMetadata - Get the metadata of given kind attached to this type.
+  /// If the metadata is not found then return null.
+  MDNode *getMetadata(unsigned KindID) const {
+    if (!hasMetadata()) return 0;
+    return getMetadataImpl(KindID);
+  }
+  
+  /// getMetadata - Get the metadata of given kind attached to this type.
+  /// If the metadata is not found then return null.
+  MDNode *getMetadata(StringRef Kind) const {
+    if (!hasMetadata()) return 0;
+    return getMetadataImpl(Kind);
+  }
+  
+  /// getAllMetadata - Get all metadata attached to this Instruction.  The first
+  /// element of each pair returned is the KindID, the second element is the
+  /// metadata value.  This list is returned sorted by the KindID.
+  void getAllMetadata(SmallVectorImpl<std::pair<unsigned, MDNode*> > &MDs)const{
+    if (hasMetadata())
+      getAllMetadataImpl(MDs);
+  }
+  
+  /// setMetadata - Set the metadata of the specified kind to the specified
+  /// node.  This updates/replaces metadata if already present, or removes it if
+  /// Node is null.
+  void setMetadata(unsigned KindID, MDNode *Node);
+  void setMetadata(StringRef Kind, MDNode *Node);
+  
+private:
+  void setHasMetadataHashEntry(bool V) {
+    HasMetadata = true;
+  }
+  
+  /// hasMetadataHashEntry - Return true if we have an entry in the on-the-side
+  /// metadata hash.
+  bool hasMetadataHashEntry() const {
+    return HasMetadata != false;
+  }
+  
+  // These are all implemented in Metadata.cpp.
+  MDNode *getMetadataImpl(unsigned KindID) const;
+  MDNode *getMetadataImpl(StringRef Kind) const;
+  void getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,MDNode*> > &)const;
+  void clearMetadataHashEntries();
+  
+  
 private:
   /// isSizedDerivedType - Derived types like structures and arrays are sized
   /// iff all of the members of the type are sized as well.  Since asking for

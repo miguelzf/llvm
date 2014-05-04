@@ -129,6 +129,7 @@ set(LLVM_ALL_TARGETS
   Hexagon
   Mips
   MSP430
+  MSIL
   NVPTX
   PowerPC
   R600

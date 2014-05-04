@@ -142,8 +142,25 @@ namespace CallingConv {
     /// \brief The calling convention used for __cdecl methods on win32.
     /// Differs from the C calling convention only in that the order of the
     /// first parameter and the sret parameter are swapped.
-    X86_CDeclMethod = 80
+    X86_CDeclMethod = 80,
 
+    /// CIL_Instance - Calling convention used for CIL instance calls.
+    CIL_Instance = 81,
+    
+    /// CIL_Virtual - Calling convention used for CIL virtual instance calls.
+    CIL_Virtual = 82,
+    
+    /// CIL_NewObj - Calling convention used for CIL ref type object ctor calls.
+    CIL_NewObj = 83,
+    
+    /// CIL_InitObj - Calling convention used for CIL value type object ctor calls.
+    CIL_InitObj = 84,
+    
+    /// CIL_Static - Calling convention used for CIL static calls.
+    CIL_Static = 85
+    
+    
+    
   };
 } // End CallingConv namespace
 

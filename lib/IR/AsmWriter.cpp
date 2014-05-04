@@ -86,6 +86,9 @@ static void PrintCallingConv(unsigned cc, raw_ostream &Out) {
   case CallingConv::MSP430_INTR:   Out << "msp430_intrcc"; break;
   case CallingConv::PTX_Kernel:    Out << "ptx_kernel"; break;
   case CallingConv::PTX_Device:    Out << "ptx_device"; break;
+  case CallingConv::CIL_Static:   Out << "cil_static"; break;
+  case CallingConv::CIL_Instance: Out << "cil_instance"; break;
+  case CallingConv::CIL_NewObj:   Out << "cil_newobj"; break;
   case CallingConv::X86_64_SysV:   Out << "x86_64_sysvcc"; break;
   case CallingConv::X86_64_Win64:  Out << "x86_64_win64cc"; break;
   case CallingConv::SPIR_FUNC:     Out << "spir_func"; break;
@@ -175,7 +178,10 @@ void TypePrinting::incorporateTypes(const Module &M) {
   std::vector<StructType*>::iterator NextToUse = NamedTypes.begin(), I, E;
   for (I = NamedTypes.begin(), E = NamedTypes.end(); I != E; ++I) {
     StructType *STy = *I;
-
+    
+    // Process metadata attached with this type.
+    incorporateStructType(STy);
+    
     // Ignore anonymous types.
     if (STy->isLiteral())
       continue;
@@ -187,6 +193,8 @@ void TypePrinting::incorporateTypes(const Module &M) {
   }
 
   NamedTypes.erase(NextToUse, NamedTypes.end());
+  
+  incorporateFunctionTypes(M);
 }
 
 
@@ -223,6 +231,7 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
       OS << "...";
     }
     OS << ')';
+    printMetadata(FTy, OS);
     return;
   }
   case Type::StructTyID: {
@@ -244,6 +253,10 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
   case Type::PointerTyID: {
     PointerType *PTy = cast<PointerType>(Ty);
     print(PTy->getElementType(), OS);
+    if (PTy->isManagedHandle()) {
+      OS << '^';
+      return;
+    }
     if (unsigned AddressSpace = PTy->getAddressSpace())
       OS << " addrspace(" << AddressSpace << ')';
     OS << '*';
@@ -345,7 +358,9 @@ public:
     TheFunction = F;
     FunctionProcessed = false;
   }
-
+  
+  void incorporateType(const Type *Ty);
+  
   /// After calling incorporateFunction, use this method to remove the
   /// most recently incorporated function from the SlotTracker. This
   /// will reset the state of the machine back to just the module contents.
@@ -457,6 +472,13 @@ inline void SlotTracker::initialize() {
     processFunction();
 }
 
+  void SlotTracker::incorporateType(const Type *Ty) {
+    SmallVector<std::pair<unsigned, MDNode*>, 4> MDForType;
+    Ty->getAllMetadata(MDForType);
+    for (unsigned i = 0, e = MDForType.size(); i != e; ++i)
+      CreateMetadataSlot(MDForType[i].second);
+  }
+  
 // Iterate through all the global variables, functions, and global
 // variable initializers and create slots for them.
 void SlotTracker::processModule() {
@@ -668,6 +690,20 @@ void SlotTracker::CreateAttributeSetSlot(AttributeSet AS) {
   asMap[AS] = DestSlot;
 }
 
+  void TypePrinting::incorporateStructType(StructType *STy) {
+    if (Machine)
+      Machine->incorporateType(STy);
+  }
+  
+  void TypePrinting::incorporateFunctionTypes(const Module &M) {
+    const Module::FunctionListType &FL = M.getFunctionList();
+    for (Module::const_iterator I = FL.begin(), E = FL.end(); I != E; ++I) {
+      const Function *F = I;
+      if (Machine)
+	Machine->incorporateType(F->getFunctionType());
+    }
+  }
+  
 //===----------------------------------------------------------------------===//
 // AsmWriter Implementation
 //===----------------------------------------------------------------------===//
@@ -676,6 +712,27 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
                                    TypePrinting *TypePrinter,
                                    SlotTracker *Machine,
                                    const Module *Context);
+
+  void TypePrinting::printMetadata(Type *Ty, raw_ostream &OS) {
+    // Print Metadata info.
+    SmallVector<std::pair<unsigned, MDNode*>, 4> TypeMD;
+    Ty->getAllMetadata(TypeMD);
+    if (!TypeMD.empty()) {
+      SmallVector<StringRef, 8> MDNames;
+      Ty->getContext().getMDKindNames(MDNames);
+      for (unsigned i = 0, e = TypeMD.size(); i != e; ++i) {
+	unsigned Kind = TypeMD[i].first;
+	if (Kind < MDNames.size()) {
+	  OS << ", !" << MDNames[Kind];
+	} else {
+	  OS << ", !<unknown kind #" << Kind << ">";
+	}
+	OS << ' ';
+	WriteAsOperandInternal(OS, TypeMD[i].second, this, Machine,
+			       TheModule);
+      }
+    }
+  }
 
 static const char *getPredicateText(unsigned predicate) {
   const char * pred = "unknown";
@@ -1172,6 +1229,7 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
 }
 
 void AssemblyWriter::init() {
+  TypePrinter.Machine = &Machine;
   if (TheModule)
     TypePrinter.incorporateTypes(*TheModule);
 }
@@ -1627,6 +1685,7 @@ void AssemblyWriter::printFunction(const Function *F) {
     Out << " align " << F->getAlignment();
   if (F->hasGC())
     Out << " gc \"" << F->getGC() << '"';
+  TypePrinter.printMetadata(FT, Out);
   if (F->hasPrefixData()) {
     Out << " prefix ";
     writeOperand(F->getPrefixData(), true);

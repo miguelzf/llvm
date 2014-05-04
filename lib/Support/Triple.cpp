@@ -21,6 +21,7 @@ const char *Triple::getArchTypeName(ArchType Kind) {
 
   case aarch64:     return "aarch64";
   case aarch64_be:  return "aarch64_be";
+  case cil:         return "cil";
   case arm:         return "arm";
   case hexagon:     return "hexagon";
   case mips:        return "mips";
@@ -256,6 +257,7 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .Case("amdil", Triple::amdil)
     .Case("spir", Triple::spir)
     .Case("spir64", Triple::spir64)
+    .Case("cil", Triple::cil)
     .Default(Triple::UnknownArch);
 }
 
@@ -683,6 +685,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
 
   case llvm::Triple::amdil:
   case llvm::Triple::arm:
+  case llvm::Triple::cil:
   case llvm::Triple::hexagon:
   case llvm::Triple::le32:
   case llvm::Triple::mips:
@@ -741,6 +744,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::amdil:
   case Triple::spir:
   case Triple::arm:
+  case Triple::cil:
   case Triple::hexagon:
   case Triple::le32:
   case Triple::mips:
@@ -773,6 +777,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::UnknownArch:
   case Triple::amdil:
   case Triple::arm:
+  case Triple::cil:
   case Triple::hexagon:
   case Triple::le32:
   case Triple::msp430:

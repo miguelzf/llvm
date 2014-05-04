@@ -361,6 +361,7 @@ private:
   error_code ResolveGlobalAndAliasInits();
   error_code ParseMetadata();
   error_code ParseMetadataAttachment();
+  error_code ParseTypeMetadataAttachment();
   error_code ParseModuleTriple(std::string &Triple);
   error_code ParseUseLists();
   error_code InitStream();

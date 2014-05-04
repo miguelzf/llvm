@@ -24,6 +24,7 @@ namespace lltok {
     dotdotdot,         // ...
     equal, comma,      // =  ,
     star,              // *
+    caret,             // ^
     lsquare, rsquare,  // [  ]
     lbrace, rbrace,    // {  }
     less, greater,     // <  >
@@ -90,6 +91,9 @@ namespace lltok {
     kw_msp430_intrcc,
     kw_ptx_kernel, kw_ptx_device,
     kw_spir_kernel, kw_spir_func,
+    kw_cil_static,
+    kw_cil_instance,
+    kw_cil_newobj,
     kw_x86_64_sysvcc, kw_x86_64_win64cc,
     kw_webkit_jscc, kw_anyregcc,
     kw_preserve_mostcc, kw_preserve_allcc,

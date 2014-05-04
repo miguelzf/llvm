@@ -1393,6 +1393,9 @@ bool LLParser::ParseOptionalCallingConv(CallingConv::ID &CC) {
   case lltok::kw_spir_kernel:    CC = CallingConv::SPIR_KERNEL; break;
   case lltok::kw_spir_func:      CC = CallingConv::SPIR_FUNC; break;
   case lltok::kw_intel_ocl_bicc: CC = CallingConv::Intel_OCL_BI; break;
+  case lltok::kw_cil_static:    CC = CallingConv::CIL_Static; break;
+  case lltok::kw_cil_instance:     CC = CallingConv::CIL_Instance; break;
+  case lltok::kw_cil_newobj:     CC = CallingConv::CIL_NewObj; break;
   case lltok::kw_x86_64_sysvcc:  CC = CallingConv::X86_64_SysV; break;
   case lltok::kw_x86_64_win64cc: CC = CallingConv::X86_64_Win64; break;
   case lltok::kw_webkit_jscc:    CC = CallingConv::WebKit_JS; break;
@@ -1462,6 +1465,53 @@ bool LLParser::ParseInstructionMetadata(Instruction *Inst,
   } while (EatIfPresent(lltok::comma));
   return false;
 }
+
+/// ParseTypeMetadata
+///   ::= !dbg !42 (',' !dbg !57)*
+bool LLParser::ParseTypeMetadata(Type *Ty, PerFunctionState *PFS) {
+  do {
+    if (Lex.getKind() != lltok::MetadataVar)
+      return TokError("expected metadata after comma");
+    
+    std::string Name = Lex.getStrVal();
+    unsigned MDK = M->getMDKindID(Name);
+    Lex.Lex();
+    
+    MDNode *Node;
+    SMLoc Loc = Lex.getLoc();
+    
+    if (ParseToken(lltok::exclaim, "expected '!' here"))
+      return true;
+    
+    // This code is similar to that of ParseMetadataValue, however it needs to
+    // have special-case code for a forward reference; see the comments on
+    // ForwardRefInstMetadata for details. Also, MDStrings are not supported
+    // at the top level here.
+    if (Lex.getKind() == lltok::lbrace) {
+      ValID ID;
+      if (ParseMetadataListValue(ID, PFS))
+	return true;
+      assert(ID.Kind == ValID::t_MDNode);
+      Ty->setMetadata(MDK, ID.MDNodeVal);
+    } else {
+      unsigned NodeID = 0;
+      if (ParseMDNodeID(Node, NodeID))
+	return true;
+      if (Node) {
+	// If we got the node, add it to the instruction.
+	Ty->setMetadata(MDK, Node);
+      } else {
+	MDRef R = { Loc, MDK, NodeID };
+	// Otherwise, remember that this should be resolved later.
+	ForwardRefTypeMetadata[Ty].push_back(R);
+      }
+    }
+    
+    // If this is the end of the list, we're done.
+  } while (EatIfPresent(lltok::comma));
+  return false;
+}
+
 
 /// ParseOptionalAlignment
 ///   ::= /* empty */
@@ -1669,6 +1719,23 @@ bool LLParser::ParseType(Type *&Result, bool AllowVoid) {
       Lex.Lex();
       break;
 
+      // Type ::= Type '^'
+    case lltok::caret: {
+      if (Result->isLabelTy())
+	return TokError("basic block handles are invalid");
+      if (Result->isVoidTy())
+	return TokError("handle to void are invalid");
+      if (!PointerType::isValidElementType(Result))
+	return TokError("handle to this type is invalid");
+      PointerType *PTy = PointerType::getUnqual(Result);
+      PTy->setAsManagedHandle();
+      Result = PTy;
+      
+      Lex.Lex();
+      break;
+    }
+      
+
     // Type ::= Type 'addrspace' '(' uint32 ')' '*'
     case lltok::kw_addrspace: {
       if (Result->isLabelTy())
@@ -1871,6 +1938,13 @@ bool LLParser::ParseStructDefinition(SMLoc TypeLoc, StringRef Name,
     if (Entry.first == 0)
       Entry.first = StructType::create(Context, Name);
     ResultTy = Entry.first;
+
+    
+    // Check to see if the type is followed by a comma and metadata.
+    if (EatIfPresent(lltok::comma))
+      if (ParseTypeMetadata(ResultTy, 0))
+	return true;
+    
     return false;
   }
 
@@ -3088,6 +3162,11 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
     FunctionType::get(RetType, ParamTypeList, isVarArg);
   PointerType *PFT = PointerType::getUnqual(FT);
 
+  // Check to see if the type is followed by a comma and metadata.
+  if (EatIfPresent(lltok::comma))
+    if (ParseTypeMetadata(FT, 0))
+      return true;
+  
   Fn = 0;
   if (!FunctionName.empty()) {
     // If this was a definition of a forward reference, remove the definition

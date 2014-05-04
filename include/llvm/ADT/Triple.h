@@ -49,6 +49,7 @@ public:
     arm,        // ARM: arm, armv.*, xscale
     aarch64,    // AArch64 (little endian): aarch64
     aarch64_be, // AArch64 (big endian): aarch64_be
+    cil,        // CIL: Common Intermediate Language
     hexagon,    // Hexagon: hexagon
     mips,       // MIPS: mips, mipsallegrex
     mipsel,     // MIPSEL: mipsel, mipsallegrexel

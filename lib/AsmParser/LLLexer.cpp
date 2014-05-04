@@ -245,6 +245,7 @@ lltok::Kind LLLexer::LexToken() {
   case ')': return lltok::rparen;
   case ',': return lltok::comma;
   case '*': return lltok::star;
+  case '^': return lltok::caret;
   case '\\': return lltok::backslash;
   }
 }
@@ -560,6 +561,9 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(spir_kernel);
   KEYWORD(spir_func);
   KEYWORD(intel_ocl_bicc);
+  KEYWORD(cil_static);
+  KEYWORD(cil_instance);
+  KEYWORD(cil_newobj);
   KEYWORD(x86_64_sysvcc);
   KEYWORD(x86_64_win64cc);
   KEYWORD(webkit_jscc);

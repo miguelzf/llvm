@@ -19,6 +19,7 @@
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MachineLocation.h"
+#include "llvm/Support/CodeGen.h"
 #include <cassert>
 #include <vector>
 

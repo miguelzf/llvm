@@ -106,7 +106,8 @@ namespace llvm {
       unsigned MDKind, MDSlot;
     };
     DenseMap<Instruction*, std::vector<MDRef> > ForwardRefInstMetadata;
-
+    DenseMap<Type*, std::vector<MDRef> > ForwardRefTypeMetadata;
+    
     SmallVector<Instruction*, 64> InstsWithTBAATag;
 
     // Type resolution handling data structures.  The location is set when we
@@ -355,7 +356,8 @@ namespace llvm {
     bool ParseMetadataValue(ValID &ID, PerFunctionState *PFS);
     bool ParseMDNodeVector(SmallVectorImpl<Value*> &, PerFunctionState *PFS);
     bool ParseInstructionMetadata(Instruction *Inst, PerFunctionState *PFS);
-
+    bool ParseTypeMetadata(Type *Ty, PerFunctionState *PFS);
+    
     // Function Parsing.
     struct ArgInfo {
       LocTy Loc;
