@@ -1008,8 +1008,8 @@ std::string MSILWriter::getCallSignature(const FunctionType* Ty,
   
   if (isManaged) {
     HasGenericParams = GetCLIGenericParameter(Ty, Inst, GenericParams, CallType);
-    HasSignedness = GetCLISignednessParameter(Ty, Signedness);
   }
+  HasSignedness = GetCLISignednessParameter(Ty, Signedness);
 
   std::string Tmp("");
   if (Ty->isVarArg()) Tmp += "vararg ";
