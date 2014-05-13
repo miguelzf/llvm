@@ -177,7 +177,10 @@ bool MSILWriter::doFinalization(Module &M) {
 
 void MSILWriter::printStartup() {
   *Out << ".assembly extern mscorlib {}\n";
-  *Out << ".assembly MSIL {}\n\n";
+  *Out << ".assembly MSIL {}\n";
+  // module contains IL only, and some pinvokes (i.e. the new operator) require a 32-bit process
+  *Out << ".corflags 0x00000003  //  ILONLY 32BITREQUIRED\n";
+  *Out << "\n";
   *Out << "// External\n";
   printExternals();
   *Out << "// Declarations\n";
@@ -309,9 +312,13 @@ static std::string GetFunctionRecordName(StringRef Name) {
 
 static std::string GetFunctionMethodName(StringRef Name) {
   StringRef::size_type I = Name.find_last_of("::");
-  if (I == StringRef::npos)
-    return Name;
-  return Name.substr(--I);
+  StringRef str = (I == StringRef::npos)? Name : Name.substr(I+1);
+  // remove prefix introduced by Clang
+  if (str.front() == (char) 1)
+    str = str.substr(1);
+  if (I != StringRef::npos)
+    return "::" + str.str();
+  return str;
 }
 
 std::string MSILWriter::getValueName(const Value* V, bool WrapInQuotes) {
@@ -460,6 +467,7 @@ std::string MSILWriter::getILClassTypeToken(const Type* Ty) {
     else
       return "class ";
   }
+    return StringRef();
 }
 
 std::string MSILWriter::getILGenericTypes(const Type* Ty) {
